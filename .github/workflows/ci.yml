@@ -1,44 +1,37 @@
-name: Windows Executable Build 
+name: Windows Production Build
  
-on: [push]
+on: push 
  
 jobs:
-  build:
+  package:
     runs-on: windows-latest 
     steps:
-    # 1. 直接下载代码（绕过Git检出问题）
-    - name: Download Repository
-      run: | 
-        $repoUrl = "https://codeload.github.com/FlynnQChen/QuantBot-/zip/refs/heads/main" 
-        $tempFile = "$env:TEMP\repo.zip" 
-        Invoke-WebRequest -Uri $repoUrl -OutFile $tempFile 
-        Expand-Archive -Path $tempFile -DestinationPath .
-        Rename-Item -Path QuantBot--main -NewName source 
- 
-    # 2. 准备构建环境
-    - name: Prepare Build Directory
+    - name: 下载源码压缩包
       run: |
-        mkdir build 
-        copy source\* build -Recurse -Force 
+        $headers = @{ Authorization = "token ${{ secrets.GITHUB_TOKEN }}" }
+        Invoke-WebRequest -Uri "https://api.github.com/repos/FlynnQChen/QuantBot-/zipball/main"  -Headers $headers -OutFile repo.zip  
+        Expand-Archive -Path repo.zip  -DestinationPath .
  
-    # 3. 安装必要组件
-    - name: Install Requirements 
+    - name: 准备构建环境 
+      run: |
+        # 获取解压后的随机目录名 
+        $dir = Get-ChildItem | Where-Object { $_.Name -match 'FlynnQChen-QuantBot--' } | Select-Object -First 1 
+        Move-Item -Path "$($dir.FullName)\*" -Destination . 
+        Remove-Item repo.zip,  $dir -Recurse -Force 
+ 
+    - name: 安装依赖 
       run: |
         choco install -y ta-lib 
         pip install numpy TA-Lib pyinstaller
  
-    # 4. 构建可执行文件 
-    - name: Build Executable 
-      working-directory: ./build 
+    - name: 构建可执行文件
       run: |
         pyinstaller --onefile `
           --add-data "configs/strategy_presets/*.yaml;configs/strategy_presets" `
-          --noconfirm `
-          --clean `
+          --noconfirm --clean `
           main.py 
  
-    # 5. 上传成品 
-    - uses: actions/upload-artifact@v4
+    - uses: actions/upload-artifact@v4 
       with:
-        name: QuantBot-Windows 
-        path: build/dist/main.exe  
+        name: QuantBot-Windows
+        path: dist/main.exe  
