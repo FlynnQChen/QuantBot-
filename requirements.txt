@@ -1,66 +1,24 @@
-# CryptoTrader 项目依赖清单 
-# 版本号遵循语义化版本规范 
+# 核心依赖
+aiohttp==3.8.4
+asyncio==3.4.3
+python-dotenv==0.21.0 
+PyYAML==6.0 
+requests==2.28.1
+websockets==10.4 
  
-## 核心依赖 
-aiohttp==3.8.4             # 异步HTTP客户端/服务器
-asyncio==3.4.3            # 异步I/O框架 
-python-dotenv==0.21.0     # 环境变量管理 
-PyYAML==6.0               # YAML配置解析
-requests==2.28.1          # HTTP请求库 
-websockets==10.4          # WebSocket客户端/服务器 
+# 数据处理 
+numpy==1.23.5
+pandas==1.5.2 
+pyarrow==9.0.0
+python-dateutil==2.8.2
  
-## 数据处理 
-numpy==1.23.5             # 数值计算 
-pandas==1.5.2             # 数据分析
-pyarrow==9.0.0            # 高效数据序列化 
-python-dateutil==2.8.2    # 日期时间处理
+# 交易与金融
+ccxt==2.6.92 
+TA-Lib==0.4.24 
+backtrader==1.9.76.123
+quantstats==0.0.62
  
-## 交易与金融 
-ccxt==2.6.92              # 加密货币交易所API 
-TA-Lib==0.4.24            # 技术分析指标
-backtrader==1.9.76.123    # 回测框架 
-quantstats==0.0.62        # 量化分析 
- 
-## 数据库
-sqlalchemy==1.4.45        # ORM和SQL工具包 
-psycopg2-binary==2.9.5    # PostgreSQL适配器 
-redis==4.3.5              # Redis客户端
-aioredis==2.0.1           # 异步Redis客户端
- 
-## 风控与安全 
-pycryptodome==3.15.0      # 加密算法
-signals==0.0.2            # 事件信号系统
-jsonschema==4.17.3        # JSON数据验证
- 
-## 开发工具
-pytest==7.2.0             # 测试框架 
-pytest-asyncio==0.20.3    # 异步测试支持 
-hypothesis==6.61.0        # 属性测试 
-mypy==0.991               # 静态类型检查
-black==22.12.0            # 代码格式化
-flake8==6.0.0             # 代码风格检查
-pylint==2.15.9            # 代码质量分析
- 
-## 日志与监控
-structlog==22.3.0         # 结构化日志
-prometheus-client==0.15.0 # Prometheus指标 
-sentry-sdk==1.12.1        # 错误监控 
- 
-## 可选依赖
-matplotlib==3.6.2         # 数据可视化 
-plotly==5.11.0            # 交互式图表 
-streamlit==1.12.2         # 数据仪表盘
- 
-## 平台特定依赖
-; sys_platform == "linux"
-uvloop==0.17.0            # 高性能事件循环(Linux only)
- 
-## 开发环境 
-ipython==8.7.0            # 交互式Python
-jupyter==1.0.0            # 笔记本环境 
-pre-commit==2.21.0        # Git钩子管理 
- 
-## 依赖规范说明 
-# ~= 兼容版本: 允许补丁版本更新
-# == 精确版本: 生产环境推荐 
-# >= 最小版本: 仅当API兼容时使用
+# 测试依赖（可单独放在requirements-test.txt ）
+pytest==7.2.0 
+pytest-cov==4.0.0
+pytest-asyncio==0.20.3
