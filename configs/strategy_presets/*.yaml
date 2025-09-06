@@ -1,0 +1,5 @@
+risk_params:
+  leverage_control:
+    base_risk: 0.10  # 基础风险容忍度（10%）
+    min_leverage: 1   # 最小杠杆
+    emergency_reset: 3  # 紧急重置杠杆倍数 

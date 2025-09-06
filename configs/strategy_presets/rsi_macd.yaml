@@ -1,0 +1,26 @@
+# configs/strategy_presets/rsi_macd.yaml  
+name: "RSI_MACD_Combo"
+exchanges: ["binance", "okx"]
+indicators:
+  RSI:
+    period: 14 
+    overbought: 70 
+    oversold: 30
+  MACD:
+    fast_period: 12
+    slow_period: 26
+    signal_period: 9
+rules:
+  - condition: "RSI < oversold and MACD > 0"
+    action: "open_long"
+  - condition: "RSI > overbought and MACD < 0"
+    action: "open_short"
+risk_params:  # 风险控制参数统一在此配置 
+  max_risk_per_trade: 0.02
+  global_stop_loss: -0.15 
+  hedge_mode: true 
+  leverage: 3 
+  trailing_stop:  # 新增动态止损参数
+    initial_risk: 0.02
+    trailing_ratio: 0.5
+    min_trail: 0.01

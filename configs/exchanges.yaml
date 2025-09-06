@@ -1,0 +1,17 @@
+# Binance 实盘与测试网配置
+binance:
+  real:
+    api_base: "https://fapi.binance.com" 
+    future_type: "um"  # 统一账户合约
+  testnet:
+    api_base: "https://testnet.binancefuture.com" 
+    future_type: "um"
+
+# OKX 实盘与测试网配置
+okx:
+  real:
+    api_base: "https://www.okx.com" 
+    future_type: "swap"
+  testnet:
+    api_base: "https://www.okx.com" 
+    future_type: "swap"  # OKX测试网需单独申请

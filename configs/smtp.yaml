@@ -1,0 +1,10 @@
+# QQ邮箱SMTP配置（程序启动后提示用户输入）
+smtp:
+  server: "smtp.qq.com" 
+  port: 465
+  use_tls: true
+  sender_name: "QuantBot Alert"
+  # 以下字段由用户运行时输入（不硬编码）
+  email: "997850754@qq.com"  # 发送邮箱（如 123@qq.com ）
+  password: "evkhwmemokagbeje"  # SMTP授权码（非QQ密码）
+  receiver: "cn_flynn@icloud.com"  # 接收通知的邮箱

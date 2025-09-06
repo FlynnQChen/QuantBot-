@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>QuantBot 量化交易系统</title>
+  
+  <!-- 动态SVG图标方案 -->
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg'  viewBox='0 0 100 100'><style>.q{fill:%236e45e2}.b{fill:%2300e676}@media (prefers-color-scheme:dark){.q{fill:%238a63f2}.b{fill:%2300ff88}}</style><path class='q' d='M30,50 Q50,20 70,50 Q50,80 30,50'/><path class='b' d='M55,35 L75,50 L55,65 L35,50 Z'/></svg>">
+  
+  <!-- 备用PNG图标 -->
+  <link rel="alternate icon" href="/icon-192.png"  type="image/png">
+  
+  <!-- Apple设备图标 -->
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png"> 
+ 
+  <!-- PWA配置 -->
+  <link rel="manifest" href="/manifest.webmanifest"> 
+  <meta name="theme-color" content="#1e1e2d">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+ 
+  <!-- 关键CSS预加载 -->
+  <link rel="preload" href="/css/app.css"  as="style">
+  
+  <!-- 安全策略 -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src ws://localhost:8000; style-src 'self' 'unsafe-inline'; script-src 'self' 'wasm-unsafe-eval'">
+  
+  <!-- 性能优化脚本 -->
+  <script>
+    // 初始化配置 
+    window.__APP_CONFIG__ = {
+      apiBaseUrl: window.location.host.includes('localhost')  
+        ? 'http://localhost:8000/api' 
+        : '/api',
+      wsUrl: window.location.host.includes('localhost') 
+        ? 'ws://localhost:8000/ws/market'
+        : `wss://${window.location.host}/ws/market`, 
+      dynamicIcon: true  // 启用动态图标 
+    };
+ 
+    // 动态图标加载器
+    document.addEventListener('DOMContentLoaded',  () => {
+      if (window.__APP_CONFIG__.dynamicIcon) {
+        const iconScript = document.createElement('script'); 
+        iconScript.src  = '/js/dynamic-icon.js'; 
+        iconScript.defer  = true;
+        document.head.appendChild(iconScript); 
+      }
+    });
+  </script>
+</head>
+<body>
+  <div id="app">
+    <!-- 现代化骨架屏 -->
+    <div class="skeleton-loader">
+      <header class="skeleton-header">
+        <div class="skeleton-logo"></div>
+        <div class="skeleton-nav"></div>
+      </header>
+      <aside class="skeleton-sidebar">
+        <div class="skeleton-menu"></div>
+      </aside>
+      <main class="skeleton-content">
+        <div class="skeleton-chart">
+          <div class="skeleton-candlestick"></div>
+        </div>
+        <div class="skeleton-strategy-panel">
+          <div class="skeleton-param"></div>
+          <div class="skeleton-param"></div>
+        </div>
+      </main>
+    </div>
+  </div>
+ 
+  <!-- 构建资源 -->
+  <script src="/js/chunk-vendors.js"  defer></script>
+  <script src="/js/app.js"  defer></script>
+ 
+  <!-- 无JS回退 -->
+  <noscript>
+    <div class="nojs-warning">
+      <svg width="64" height="64" viewBox="0 0 24 24" style="margin-bottom:1rem">
+        <path fill="#ff4757" d="M12,2C6.5,2 2,6.5 2,12C2,17.5 6.5,22 12,22C17.5,22 22,17.5 22,12C22,6.5 17.5,2 12,2M12,4C16.4,4 20,7.6 20,12C20,16.4 16.4,20 12,20C7.6,20 4,16.4 4,12C4,7.6 7.6,4 12,4M11,7V13H13V7H11M11,15V17H13V15H11Z"/>
+      </svg>
+      <h2>JavaScript 已禁用</h2>
+      <p>QuantBot 需要 JavaScript 支持才能提供完整的交易功能</p>
+      <p>请启用浏览器脚本执行功能后刷新页面</p>
+    </div>
+  </noscript>
+ 
+  <style>
+    /* 骨架屏动画 */
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+    
+    .skeleton-loader {
+      --skeleton-color: #2a2a3c;
+      --skeleton-accent: #3a3a4c;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: #1e1e2d;
+      z-index: 9999;
+      display: grid;
+      grid-template:
+        "header header" 60px
+        "sidebar content" 1fr / 220px 1fr;
+      gap: 1px;
+    }
+    
+    .skeleton-header {
+      grid-area: header;
+      background: var(--skeleton-color);
+      display: flex;
+      align-items: center;
+      padding: 0 1rem;
+    }
+    
+    .skeleton-logo {
+      width: 120px;
+      height: 28px;
+      background: var(--skeleton-accent);
+      border-radius: 4px;
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+    
+    .skeleton-sidebar {
+      grid-area: sidebar;
+      background: var(--skeleton-color);
+      padding: 1rem;
+    }
+    
+    .skeleton-menu {
+      height: 40px;
+      background: var(--skeleton-accent);
+      border-radius: 4px;
+      margin-bottom: 0.5rem;
+      animation: pulse 1.5s ease-in-out infinite 0.2s;
+    }
+    
+    .skeleton-content {
+      grid-area: content;
+      background: var(--skeleton-color);
+      padding: 1rem;
+      display: grid;
+      grid-template-rows: 1fr auto;
+      gap: 1rem;
+    }
+    
+    .skeleton-chart {
+      background: var(--skeleton-accent);
+      border-radius: 8px;
+      position: relative;
+      overflow: hidden;
+      animation: pulse 1.5s ease-in-out infinite 0.4s;
+    }
+    
+    .skeleton-candlestick {
+      position: absolute;
+      bottom: 20px;
+      left: 50px;
+      width: calc(100% - 100px);
+      height: 60%;
+      background: 
+        linear-gradient(90deg, 
+          transparent 0%, 
+          rgba(255,255,255,0.05) 50%, 
+          transparent 100%);
+    }
+    
+    .skeleton-strategy-panel {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+      height: 120px;
+    }
+    
+    .skeleton-param {
+      background: var(--skeleton-accent);
+      border-radius: 4px;
+      animation: pulse 1.5s ease-in-out infinite 0.6s;
+    }
+    
+    /* 无JS提示样式 */
+    .nojs-warning {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: #1e1e2d;
+      color: #ff4757;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 10000;
+      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+      text-align: center;
+      padding: 2rem;
+      line-height: 1.6;
+    }
+    
+    .nojs-warning h2 {
+      margin: 0 0 1rem;
+      font-size: 1.5rem;
+    }
+    
+    .nojs-warning p {
+      margin: 0.25rem 0;
+      color: #ddd;
+      max-width: 400px;
+    }
+    
+    @media (prefers-color-scheme: dark) {
+      .skeleton-loader {
+        --skeleton-color: #252537;
+        --skeleton-accent: #323248;
+      }
+    }
+  </style>
+</body>
+</html>

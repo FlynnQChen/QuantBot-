@@ -1,0 +1,7 @@
+security:
+  api_key: ""  # 用于X-API-KEY头验证 
+  rate_limit: 100/10m  # 接口限流设置 
+ 
+websocket:
+  max_connections: 100  # 最大WebSocket连接数
+  ping_interval: 30     # 保活心跳间隔(秒)

@@ -1,0 +1,23 @@
+name: "Custom_Strategy"
+exchanges: ["binance", "okx"]
+indicators:
+  RSI:
+    period: 14 
+  MACD:
+    fast_period: 12 
+    slow_period: 26 
+  MA:
+    period: 20
+    type: "SMA"  # 明确定义为简单移动平均线 
+rules:
+  - condition: "RSI < 30 and MACD > 0 and close > MA"  # 合并两条规则
+    action: "open_long"
+  - condition: "RSI > 70 and MACD < 0"
+    action: "open_short"
+leverage: 3 
+hedge_mode: false 
+risk_params:
+  trailing_stop:  # 动态追踪止损规则 
+    initial_risk: 0.02    # 初始止损线（开仓价的±2%）
+    trailing_ratio: 0.5   # 盈利50%后启动追踪 
+    min_trail: 0.01       # 最小追踪距离（不低于1%）
