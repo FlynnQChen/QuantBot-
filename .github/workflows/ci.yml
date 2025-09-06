@@ -1,24 +1,35 @@
-name: QuantBot CI 
+name: QuantBot Production Build 
  
-on: [push, pull_request] 
+on: [push]
  
 jobs:
   package:
     runs-on: windows-latest 
     steps:
-    - uses: actions/checkout@v4 
- 
-    - name: 安装依赖 
+    - name: 强制重命名问题目录
       run: |
-        choco install -y ta-lib 
-        pip install numpy Cython TA-Lib pyinstaller
+        # 临时重命名问题目录
+        git clone https://github.com/FlynnQChen/QuantBot-.git  repo-temp
+        cd repo-temp
+        ren "configs\strategy_presets" strategy_configs 
+        cd ..
+        move repo-temp\* .
+        rmdir /s /q repo-temp
  
-    - name: 直接打包（跳过所有复杂配置）
+    - name: 安装依赖
       run: |
-        pyinstaller --onefile --noconfirm --clean --add-data "configs/strategy_presets;configs/strategy_presets" main.py 
+        choco install -y ta-lib
+        pip install numpy TA-Lib pyinstaller
  
-    - name: 上传成品 
-      uses: actions/upload-artifact@v4 
+    - name: 暴力打包
+      run: |
+        pyinstaller --onefile ^ 
+          --add-data "configs/strategy_configs;configs/strategy_configs" ^
+          --noconfirm ^ 
+          --clean ^
+          main.py 
+ 
+    - uses: actions/upload-artifact@v4 
       with:
-        name: QuantBot-Windows
-        path: dist/main.exe  
+        name: QuantBot-Executable 
+        path: dist/main.exe 
