@@ -1,52 +1,68 @@
-name: QuantBot CI & Packaging
+name: QuantBot CI & Packaging 
  
 on:
   push:
     branches: [main]
   pull_request:
-    branches: [main]
+    branches: [main] 
  
 jobs:
   build-and-package:
     runs-on: windows-latest 
-    env:
-      GIT_REDIRECT_STDERR: 2>&1  # 重定向Git错误输出 
     steps:
     - name: Configure Git
       run: |
         git config --global core.protectNTFS  false
         git config --global core.longpaths  true 
-        git config --global core.symlinks  false 
  
     - uses: actions/checkout@v4
       with:
         sparse-checkout: |
-          * 
+          *
           !configs/strategy_presets/
-          configs/strategy_presets/
         fetch-depth: 1 
-        lfs: false
  
-    - name: Safe file copy
+    - name: Copy strategy files safely 
       run: |
-        # 创建安全构建环境 
-        mkdir "$env:RUNNER_TEMP\safe-build"
-        robocopy . "$env:RUNNER_TEMP\safe-build" /E /XD configs\strategy_presets /XF *.yaml
-        
-        # 手动复制需要的配置文件 
-        mkdir "$env:RUNNER_TEMP\safe-build\configs\strategy_presets"
-        copy "configs\strategy_presets\*.yaml" "$env:RUNNER_TEMP\safe-build\configs\strategy_presets\"
-        
-        cd "$env:RUNNER_TEMP\safe-build"
+        mkdir -p configs/strategy_presets
+        cp configs/strategy_presets/*.yaml configs/strategy_presets/ 2>/dev/null || true 
  
-    - name: Build and package
+    - name: Install TA-Lib
       run: |
-        pip install -r requirements.txt  pyinstaller 
-        pyinstaller --noconfirm --onefile `
-          --add-data "configs/strategy_presets/*.yaml;configs/strategy_presets" `
-          main.py 
+        choco install -y ta-lib --version=0.4.0.1
+        echo "TA_LIBRARY_PATH=C:\Program Files\ta-lib\lib" >> $env:GITHUB_ENV 
+        echo "TA_INCLUDE_PATH=C:\Program Files\ta-lib\include" >> $env:GITHUB_ENV
  
-    - uses: actions/upload-artifact@v4 
+    - name: Setup Python 
+      uses: actions/setup-python@v5
       with:
-        name: QuantBot-Windows
-        path: "$env:RUNNER_TEMP\safe-build\dist\main.exe" 
+        python-version: '3.11'
+ 
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip 
+        pip install numpy Cython TA-Lib 
+        pip install -r requirements.txt 
+        pip install pyinstaller 
+ 
+    - name: Build with PyInstaller 
+      run: |
+        # 使用安全路径构建 
+        $spec = @'
+# -*- mode: python -*-
+a = Analysis(
+    ['main.py'], 
+    binaries=[],
+    datas=[('configs/strategy_presets/*.yaml', 'configs/strategy_presets')],
+    hiddenimports=[]
+)
+exe = EXE(a.scripts,  name='QuantBot', console=True)
+'@ 
+        $spec | Out-File -FilePath build.spec  -Encoding utf8
+        pyinstaller --noconfirm --onefile build.spec 
+ 
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: QuantBot-Windows 
+        path: dist/QuantBot.exe 
