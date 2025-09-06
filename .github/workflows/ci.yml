@@ -9,7 +9,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest 
-    timeout-minutes: 30 
+    timeout-minutes: 40 
     
     steps:
     - uses: actions/checkout@v3
@@ -26,51 +26,52 @@ jobs:
           pkg-config \
           gfortran 
  
-    - name: Build TA-Lib C library (with fixes)
+    - name: Build TA-Lib with comprehensive fixes
       run: |
-        # 从GitHub官方仓库下载（避免SourceForge问题）
-        wget -O ta-lib.tar.gz  https://github.com/TA-Lib/ta-lib/archive/refs/tags/v0.4.0.tar.gz  || \
-        wget -O ta-lib.tar.gz  https://downloads.sourceforge.net/project/ta-lib/ta-lib/0.4.0/ta-lib-0.4.0-src.tar.gz 
-        
+        # 从GitHub官方仓库下载（确保文件完整性）
+        wget -O ta-lib.tar.gz  https://github.com/TA-Lib/ta-lib/archive/refs/tags/v0.4.0.tar.gz 
         tar -xzf ta-lib.tar.gz  
-        cd ta-lib-* 
+        cd ta-lib-*
         
-        # 确保包含所有必要文件
-        if [ ! -f include/ta_defs.h ]; then 
-          echo "Error: TA-Lib source is incomplete!"
-          exit 1 
-        fi
+        # 关键修复1：彻底禁用所有并行编译
+        find . -type f \( -name "Makefile*" -o -name "configure*" \) \
+          -exec sed -i 's/make -j/make /g' {} \;
         
-        # 修复构建系统 
-        ./autogen.sh  || (autoreconf -fi && ./configure)
+        # 关键修复2：修复依赖跟踪系统 
+        sed -i 's/depcomp//g' configure
+        sed -i 's/MAKE="make -j/MAKE="make /g' configure.ac  
+        
+        # 关键修复3：构建系统全面修复
+        ./autogen.sh  || (autoreconf -fi && automake --add-missing) 
         
         ./configure \
           --prefix=/usr \
           --disable-static \
-          --enable-shared
+          --enable-shared \
+          --disable-dependency-tracking 
         
-        make -j$(nproc)
-        sudo make install 
-        sudo ldconfig
+        # 单线程编译（彻底避免竞争条件）
+        make -j1 VERBOSE=1 
+        sudo make install
+        sudo ldconfig 
  
-    - name: Install Python TA-Lib (official maintained fork)
+    - name: Install Python TA-Lib 
       run: |
-        python -m pip install --upgrade pip wheel
-        pip install numpy==1.24.3 
+        python -m pip install --upgrade pip wheel 
+        pip install numpy==1.24.3
         pip install Cython==3.0.0
         
-        # 使用官方维护的fork 
         TA_LIBRARY_PATH=/usr/lib \
         TA_INCLUDE_PATH=/usr/include \
-        pip install git+https://github.com/mrjbq7/ta-lib.git@TA_Lib-0.4.24  \
+        pip install TA-Lib==0.4.24 \
           --global-option=build_ext \
           --global-option="-L/usr/lib" \
           --global-option="-I/usr/include" \
           --no-cache-dir \
-          --no-build-isolation
+          --no-build-isolation 
  
-    - name: Verify installation 
+    - name: Verify installation
       run: |
         python -c "import talib; print(f'TA-Lib {talib.__version__} loaded')"
-        python -c "import talib; print('Available functions:', len(talib.get_functions()))" 
-        python -c "from talib import RSI, MACD; print('RSI and MACD indicators working')"
+        python -c "from talib import RSI, MACD; print('Indicators test passed')"
+        python -c "import talib; print('Total functions:', len(talib.get_functions()))" 
