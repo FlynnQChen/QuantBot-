@@ -1,35 +1,27 @@
-name: Windows Final Build
+name: Windows Production Build 
  
-on: push
+on: [push]
  
 jobs:
-  package:
+  build:
     runs-on: windows-latest 
     steps:
-    - name: 下载源码（绕过Git）
-      run: |
-        $url = "https://github.com/FlynnQChen/QuantBot-/archive/refs/heads/main.zip" 
-        $tempFile = "$env:RUNNER_TEMP\repo.zip" 
-        (New-Object Net.WebClient).DownloadFile($url, $tempFile)
-        [System.Reflection.Assembly]::LoadWithPartialName('System.IO.Compression.FileSystem')
-        [System.IO.Compression.ZipFile]::ExtractToDirectory($tempFile, $PWD)
-        Move-Item -Path QuantBot--main\* -Destination .
-        Remove-Item QuantBot--main, $tempFile -Recurse -Force
+    - uses: actions/checkout@v4 
  
-    - name: 安装依赖
+    - name: Install dependencies 
       run: |
-        choco install -y ta-lib --no-progress
-        pip install --quiet numpy TA-Lib pyinstaller
+        choco install -y ta-lib 
+        pip install numpy TA-Lib pyinstaller 
  
-    - name: 打包EXE
+    - name: Build executable 
       run: |
         pyinstaller --onefile `
           --add-data "configs/strategy_presets;configs/strategy_presets" `
-          --noconfirm --clean `
-          --log-level ERROR `
+          --noconfirm `
+          --clean `
           main.py  
  
-    - uses: actions/upload-artifact@v4
+    - uses: actions/upload-artifact@v4 
       with:
         name: QuantBot-Windows 
-        path: dist/main.exe 
+        path: dist/main.exe  
