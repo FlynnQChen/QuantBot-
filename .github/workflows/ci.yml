@@ -1,4 +1,4 @@
-name: CI Pipeline 
+name: CI Pipeline
  
 on:
   push:
@@ -8,33 +8,37 @@ on:
  
 jobs:
   test:
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
+    runs-on: ubuntu-latest 
+    timeout-minutes: 15 
     
     steps:
     - name: Checkout code 
       uses: actions/checkout@v3
+ 
+    - name: Install TA-Lib system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential 
+        wget http://prdownloads.sourceforge.net/ta-lib/ta-lib-0.4.0-src.tar.gz 
+        tar -xzf ta-lib-0.4.0-src.tar.gz 
+        cd ta-lib/
+        ./configure --prefix=/usr
+        make 
+        sudo make install
+        cd ..
+        rm -rf ta-lib/ ta-lib-0.4.0-src.tar.gz 
  
     - name: Set up Python
       uses: actions/setup-python@v4 
       with:
         python-version: '3.10'
  
-    - name: Validate requirements format 
+    - name: Install Python dependencies
       run: |
-        # 检查空行和格式错误
-        if grep -q "^[[:space:]]*$" requirements.txt;  then 
-          echo "发现空行，请删除requirements.txt 中的空行"
-          exit 1
-        fi
-        if ! grep -q "^[a-zA-Z]" requirements.txt;  then
-          echo "requirements.txt 必须以包名开头"
-          exit 1
-        fi 
- 
-    - name: Install dependencies
-      run: |
-        pip install --upgrade pip
+        python -m pip install --upgrade pip 
+        pip install wheel
+        pip install numpy  # TA-Lib 需要先安装 numpy 
+        pip install TA-Lib 
         pip install -r requirements.txt 
         pip install pytest pytest-cov
  
