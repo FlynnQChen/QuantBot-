@@ -4,39 +4,41 @@ on: [push]
  
 jobs:
   build:
-    runs-on: windows-latest
+    runs-on: windows-latest 
     steps:
-    # 1. 跳过问题目录的检出
-    - uses: actions/checkout@v4
-      with:
-        path: source  # 指定独立检出目录
+    # 1. 直接下载代码（绕过Git检出问题）
+    - name: Download Repository
+      run: | 
+        $repoUrl = "https://codeload.github.com/FlynnQChen/QuantBot-/zip/refs/heads/main" 
+        $tempFile = "$env:TEMP\repo.zip" 
+        Invoke-WebRequest -Uri $repoUrl -OutFile $tempFile 
+        Expand-Archive -Path $tempFile -DestinationPath .
+        Rename-Item -Path QuantBot--main -NewName source 
  
-    # 2. 创建干净的构建环境 
-    - name: Setup Build Directory 
+    # 2. 准备构建环境
+    - name: Prepare Build Directory
       run: |
-        mkdir build
-        robocopy source build /E /XD source\configs\strategy_presets
-        mkdir build\configs\strategy_presets
-        copy source\configs\strategy_presets\*.yaml build\configs\strategy_presets\
+        mkdir build 
+        copy source\* build -Recurse -Force 
  
-    # 3. 安装必要组件 
+    # 3. 安装必要组件
     - name: Install Requirements 
       run: |
         choco install -y ta-lib 
         pip install numpy TA-Lib pyinstaller
  
-    # 4. 构建可执行文件
-    - name: Build Executable
-      working-directory: ./build  # 关键：在干净目录中构建
+    # 4. 构建可执行文件 
+    - name: Build Executable 
+      working-directory: ./build 
       run: |
-        pyinstaller --onefile ^ 
-          --add-data "configs/strategy_presets/*.yaml;configs/strategy_presets" ^
-          --noconfirm ^
-          --clean ^ 
-          main.py  
+        pyinstaller --onefile `
+          --add-data "configs/strategy_presets/*.yaml;configs/strategy_presets" `
+          --noconfirm `
+          --clean `
+          main.py 
  
     # 5. 上传成品 
     - uses: actions/upload-artifact@v4
       with:
-        name: QuantBot-Windows
-        path: build/dist/main.exe 
+        name: QuantBot-Windows 
+        path: build/dist/main.exe  
