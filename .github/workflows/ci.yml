@@ -1,37 +1,35 @@
-name: Windows Production Build
+name: Windows Final Build
  
-on: push 
+on: push
  
 jobs:
   package:
     runs-on: windows-latest 
     steps:
-    - name: 下载源码压缩包
+    - name: 下载源码（绕过Git）
       run: |
-        $headers = @{ Authorization = "token ${{ secrets.GITHUB_TOKEN }}" }
-        Invoke-WebRequest -Uri "https://api.github.com/repos/FlynnQChen/QuantBot-/zipball/main"  -Headers $headers -OutFile repo.zip  
-        Expand-Archive -Path repo.zip  -DestinationPath .
+        $url = "https://github.com/FlynnQChen/QuantBot-/archive/refs/heads/main.zip" 
+        $tempFile = "$env:RUNNER_TEMP\repo.zip" 
+        (New-Object Net.WebClient).DownloadFile($url, $tempFile)
+        [System.Reflection.Assembly]::LoadWithPartialName('System.IO.Compression.FileSystem')
+        [System.IO.Compression.ZipFile]::ExtractToDirectory($tempFile, $PWD)
+        Move-Item -Path QuantBot--main\* -Destination .
+        Remove-Item QuantBot--main, $tempFile -Recurse -Force
  
-    - name: 准备构建环境 
+    - name: 安装依赖
       run: |
-        # 获取解压后的随机目录名 
-        $dir = Get-ChildItem | Where-Object { $_.Name -match 'FlynnQChen-QuantBot--' } | Select-Object -First 1 
-        Move-Item -Path "$($dir.FullName)\*" -Destination . 
-        Remove-Item repo.zip,  $dir -Recurse -Force 
+        choco install -y ta-lib --no-progress
+        pip install --quiet numpy TA-Lib pyinstaller
  
-    - name: 安装依赖 
-      run: |
-        choco install -y ta-lib 
-        pip install numpy TA-Lib pyinstaller
- 
-    - name: 构建可执行文件
+    - name: 打包EXE
       run: |
         pyinstaller --onefile `
-          --add-data "configs/strategy_presets/*.yaml;configs/strategy_presets" `
+          --add-data "configs/strategy_presets;configs/strategy_presets" `
           --noconfirm --clean `
-          main.py 
+          --log-level ERROR `
+          main.py  
  
-    - uses: actions/upload-artifact@v4 
+    - uses: actions/upload-artifact@v4
       with:
-        name: QuantBot-Windows
-        path: dist/main.exe  
+        name: QuantBot-Windows 
+        path: dist/main.exe 
