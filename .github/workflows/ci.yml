@@ -8,7 +8,7 @@ on:
  
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest 
     timeout-minutes: 30 
     
     steps:
@@ -25,36 +25,55 @@ jobs:
           libtool \
           pkg-config \
           gfortran 
-        
-        # 安装特定版本的 TA-Lib C库 
-        wget -O ta-lib.tar.gz  https://downloads.sourceforge.net/project/ta-lib/ta-lib/0.4.0/ta-lib-0.4.0-src.tar.gz  
-        tar -xzf ta-lib.tar.gz  
-        cd ta-lib/
-        ./configure --prefix=/usr
-        make -j$(nproc)
-        sudo make install
-        sudo ldconfig 
  
-    - name: Set up Python 
-      uses: actions/setup-python@v4 
+    - name: Build TA-Lib with fixes 
+      run: |
+        # 下载源码 
+        wget -O ta-lib.tar.gz  https://downloads.sourceforge.net/project/ta-lib/ta-lib/0.4.0/ta-lib-0.4.0-src.tar.gz  
+        tar -xzf ta-lib.tar.gz 
+        cd ta-lib/
+        
+        # 关键修复1：禁用并行编译 
+        sed -i 's/make -j/make /' configure 
+        sed -i 's/MAKE="make -j/MAKE="make /' Makefile.* 
+        
+        # 关键修复2：忽略格式安全警告 
+        export CFLAGS="-Wno-error=format-security -O2"
+        export CXXFLAGS="-Wno-error=format-security -O2"
+        
+        ./configure \
+          --prefix=/usr \
+          --disable-static \
+          --enable-shared \
+          --disable-dependency-tracking 
+        
+        # 单线程编译 
+        make -j1 
+        sudo make install
+        sudo ldconfig
+ 
+    - name: Set up Python
+      uses: actions/setup-python@v4
       with:
         python-version: '3.10'
  
-    - name: Install Python dependencies with patched TA-Lib 
+    - name: Install Python dependencies 
       run: |
         python -m pip install --upgrade pip wheel 
         pip install numpy==1.24.3
         pip install Cython==3.0.0
         
-        # 使用修复版TA-Lib安装
-        pip install git+https://github.com/mrjbq7/ta-lib.git@TA_Lib-0.4.24  \
+        # 使用修复后的环境变量 
+        TA_LIBRARY_PATH=/usr/lib \
+        TA_INCLUDE_PATH=/usr/include \
+        pip install TA-Lib==0.4.24 \
           --global-option=build_ext \
           --global-option="-L/usr/lib" \
           --global-option="-I/usr/include" \
           --no-cache-dir \
           --no-build-isolation
  
-    - name: Verify installation 
+    - name: Verify installation
       run: |
-        python -c "import talib; print(f'TA-Lib {talib.__version__} loaded successfully')"
-        python -c "import talib; print('Available functions:', len(talib.get_functions()))" 
+        python -c "import talib; print('TA-Lib version:', talib.__version__)"
+        python -c "import talib; print('Number of functions:', len(talib.get_functions()))" 
