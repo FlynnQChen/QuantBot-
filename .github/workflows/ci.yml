@@ -1,4 +1,4 @@
-name: CI Pipeline 
+name: CI Pipeline
  
 on:
   push:
@@ -8,60 +8,62 @@ on:
  
 jobs:
   build:
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
+    runs-on: ubuntu-latest 
+    timeout-minutes: 30 
     
     steps:
-    - uses: actions/checkout@v3 
+    - uses: actions/checkout@v3
  
-    - name: Install system dependencies 
+    - name: Install system dependencies
       run: |
-        sudo apt-get update 
+        sudo apt-get update
         sudo apt-get install -y \
           build-essential \
           wget \
           cmake \
           automake \
           libtool \
-          pkg-config 
-        
-        # 修复编译系统问题
-        export CFLAGS="-Wno-error=format-security -O2"
-        export LDFLAGS="-Wl,--as-needed"
+          pkg-config \
+          gfortran 
  
-    - name: Build TA-Lib (sequential)
+    - name: Download and build TA-Lib (patched)
       run: |
-        wget https://downloads.sourceforge.net/project/ta-lib/ta-lib/0.4.0/ta-lib-0.4.0-src.tar.gz 
-        tar -xzf ta-lib-0.4.0-src.tar.gz  
-        cd ta-lib/
+        # 使用备用下载源 
+        wget https://github.com/TA-Lib/ta-lib/archive/refs/tags/v0.4.0.tar.gz  -O ta-lib-0.4.0.tar.gz  || 
+          wget https://downloads.sourceforge.net/project/ta-lib/ta-lib/0.4.0/ta-lib-0.4.0-src.tar.gz 
         
-        # 关键修复：禁用并行编译 
-        sed -i 's/make -j/make /' configure 
-        sed -i 's/MAKE="make -j/MAKE="make /' configure.ac  
+        tar -xzf ta-lib-*.tar.gz  
+        cd ta-lib-*
+        
+        # 修复可能缺失的构建文件
+        if [ ! -f configure ]; then
+          autoreconf -fi
+        fi 
+        
+        # 应用关键修复补丁
+        sed -i.bak  's/MAKE="make -j\${MAKE_JOBS}"/MAKE="make"/' configure 
+        sed -i.bak  's/make -j\${MAKE_JOBS}/make/' Makefile.* 
         
         ./configure \
           --prefix=/usr \
           --build=$(uname -m)-linux-gnu \
           --disable-static \
           --enable-shared \
-          --disable-dependency-tracking 
+          --disable-dependency-tracking
         
-        # 单线程编译 
-        make -j1 
-        sudo make install
-        sudo ldconfig 
-        cd ..
-        rm -rf ta-lib*
+        make -j1
+        sudo make install 
+        sudo ldconfig
  
-    - name: Set up Python
-      uses: actions/setup-python@v4 
+    - name: Set up Python 
+      uses: actions/setup-python@v4
       with:
         python-version: '3.10'
  
-    - name: Install Python dependencies
+    - name: Install Python dependencies 
       run: |
-        python -m pip install --upgrade pip wheel
-        pip install numpy==1.24.3 
+        python -m pip install --upgrade pip wheel 
+        pip install numpy==1.24.3
         pip install Cython==3.0.0
         TA_LIBRARY_PATH=/usr/lib TA_INCLUDE_PATH=/usr/include \
           pip install TA-Lib==0.4.24 \
@@ -69,9 +71,9 @@ jobs:
           --global-option="-L/usr/lib" \
           --global-option="-I/usr/include" \
           --no-cache-dir \
-          --no-build-isolation 
+          --no-build-isolation
  
-    - name: Verify installation
+    - name: Verify installation 
       run: |
-        python -c "import talib; print(f'TA-Lib {talib.__version__} successfully imported')"
-        python -c "from talib import MA_Type; print('MA Types:', dir(MA_Type))"
+        python -c "import talib; print('TA-Lib functions:', len(talib.get_functions()))" 
+        python -c "import talib; print('TA-Lib version:', talib.__version__)"
