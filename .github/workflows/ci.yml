@@ -1,4 +1,4 @@
-name: CI Pipeline
+name: CI Pipeline 
  
 on:
   push:
@@ -9,10 +9,10 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 20 
+    timeout-minutes: 25
     
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v3 
  
     - name: Install system dependencies
       run: |
@@ -20,17 +20,27 @@ jobs:
         sudo apt-get install -y \
           build-essential \
           wget \
-          cmake
+          cmake \
+          automake \
+          libtool \
+          pkg-config
         
-        # 安装 TA-Lib C 库 
-        wget https://downloads.sourceforge.net/project/ta-lib/ta-lib/0.4.0/ta-lib-0.4.0-src.tar.gz 
-        tar -xzf ta-lib-0.4.0-src.tar.gz  
+        # 修复编译警告问题 
+        export CFLAGS="-Wno-error=format-security"
+        
+        # 下载并编译 TA-Lib
+        wget https://downloads.sourceforge.net/project/ta-lib/ta-lib/0.4.0/ta-lib-0.4.0-src.tar.gz  
+        tar -xzf ta-lib-0.4.0-src.tar.gz 
         cd ta-lib/
-        ./configure --prefix=/usr 
-        make -j$(nproc)
-        sudo make install
+        ./configure --prefix=/usr \
+                   --build=$(uname -m)-linux-gnu \
+                   --disable-static \
+                   --enable-shared 
+        make -j$(nproc) CFLAGS="-Wno-error=format-security"
+        sudo make install 
+        sudo ldconfig 
         cd ..
-        rm -rf ta-lib/ ta-lib-0.4.0-src.tar.gz 
+        rm -rf ta-lib*
  
     - name: Set up Python
       uses: actions/setup-python@v4 
@@ -40,14 +50,16 @@ jobs:
     - name: Install Python dependencies
       run: |
         python -m pip install --upgrade pip wheel
-        pip install numpy==1.24.3  # 必须指定兼容版本
-        pip install Cython==3.0.0  # 明确指定 Cython 版本
+        pip install numpy==1.24.3 
+        pip install Cython==3.0.0
         pip install TA-Lib==0.4.24 \
           --global-option=build_ext \
           --global-option="-L/usr/lib" \
-          --global-option="-I/usr/include"
-        pip install -r requirements.txt  
+          --global-option="-I/usr/include" \
+          --no-cache-dir 
+        pip install -r requirements.txt 
  
-    - name: Verify installation
+    - name: Verify installation 
       run: |
-        python -c "import talib; print(f'TA-Lib {talib.__version__} installed')"
+        python -c "import talib; print(f'Successfully imported TA-Lib {talib.__version__}')"
+        python -c "import talib; print(talib.get_functions())" 
