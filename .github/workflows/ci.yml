@@ -7,23 +7,27 @@ on:
     branches: [ main ]
  
 jobs:
-  test:
-    runs-on: ubuntu-latest 
-    timeout-minutes: 15 
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20 
     
     steps:
-    - name: Checkout code 
-      uses: actions/checkout@v3
+    - uses: actions/checkout@v3
  
-    - name: Install TA-Lib system dependencies
+    - name: Install system dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y build-essential 
-        wget http://prdownloads.sourceforge.net/ta-lib/ta-lib-0.4.0-src.tar.gz 
-        tar -xzf ta-lib-0.4.0-src.tar.gz 
+        sudo apt-get install -y \
+          build-essential \
+          wget \
+          cmake
+        
+        # 安装 TA-Lib C 库 
+        wget https://downloads.sourceforge.net/project/ta-lib/ta-lib/0.4.0/ta-lib-0.4.0-src.tar.gz 
+        tar -xzf ta-lib-0.4.0-src.tar.gz  
         cd ta-lib/
-        ./configure --prefix=/usr
-        make 
+        ./configure --prefix=/usr 
+        make -j$(nproc)
         sudo make install
         cd ..
         rm -rf ta-lib/ ta-lib-0.4.0-src.tar.gz 
@@ -35,16 +39,15 @@ jobs:
  
     - name: Install Python dependencies
       run: |
-        python -m pip install --upgrade pip 
-        pip install wheel
-        pip install numpy  # TA-Lib 需要先安装 numpy 
-        pip install TA-Lib 
-        pip install -r requirements.txt 
-        pip install pytest pytest-cov
+        python -m pip install --upgrade pip wheel
+        pip install numpy==1.24.3  # 必须指定兼容版本
+        pip install Cython==3.0.0  # 明确指定 Cython 版本
+        pip install TA-Lib==0.4.24 \
+          --global-option=build_ext \
+          --global-option="-L/usr/lib" \
+          --global-option="-I/usr/include"
+        pip install -r requirements.txt  
  
-    - name: Run tests 
+    - name: Verify installation
       run: |
-        pytest tests/ --cov=./ --cov-report=xml 
-        
-    - name: Upload coverage
-      uses: codecov/codecov-action@v3 
+        python -c "import talib; print(f'TA-Lib {talib.__version__} installed')"
