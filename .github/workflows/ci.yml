@@ -1,44 +1,45 @@
-name: QuantBot CI & Packaging 
+name: QuantBot CI & Packaging
  
-on: [push, pull_request]
+on: 
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
  
 jobs:
   build-and-package:
-    runs-on: windows-latest  # 关键：使用Windows环境 
+    runs-on: windows-latest
     strategy:
       matrix:
-        python-version: ['3.11'] 
+        python-version: ['3.11']
     steps:
     - uses: actions/checkout@v3
  
-    # 步骤1：安装TA-Lib依赖 
-    - name: Install TA-Lib dependencies 
+    - name: Install TA-Lib dependencies
       run: |
-        choco install -y ta-lib --version=0.4.0.1 
-        echo "C:\Program Files\ta-lib\lib" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append 
-        echo "C:\Program Files\ta-lib\include" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+        choco install -y ta-lib --version=0.4.0.1
+        echo "TA_LIBRARY_PATH=C:\Program Files\ta-lib\lib" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+        echo "TA_INCLUDE_PATH=C:\Program Files\ta-lib\include" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append 
  
-    # 步骤2：设置Python环境
     - name: Set up Python ${{ matrix.python-version  }}
       uses: actions/setup-python@v4
       with:
         python-version: ${{ matrix.python-version  }}
  
-    # 步骤3：安装Python依赖 
-    - name: Install Python dependencies 
+    - name: Install Python dependencies
       run: |
-        python -m pip install --upgrade pip
+        python -m pip install --upgrade pip 
         pip install numpy Cython TA-Lib 
-        pip install -r requirements.txt 
-        pip install pyinstaller 
+        pip install -r requirements.txt  
+        pip install pyinstaller
  
-    # 步骤4：Windows打包
     - name: Package with PyInstaller
       run: |
         # 创建打包配置 
-        $spec = @"
+        $specContent = @"
 # -*- mode: python -*-
 block_cipher = None 
+ 
 a = Analysis(
     ['main.py'], 
     binaries=[],
@@ -76,12 +77,10 @@ exe = EXE(
     entitlements_file=None,
 )
 "@ 
-        $spec | Out-File -FilePath build.spec  -Encoding utf8 
+        $specContent | Out-File -FilePath build.spec  -Encoding utf8
  
-        # 执行打包
-        pyinstaller --onefile --windowed --icon=assets/icon.ico  build.spec  
+        pyinstaller --noconfirm --onefile --windowed build.spec  
  
-    # 步骤5：上传制品 
     - name: Upload artifact
       uses: actions/upload-artifact@v3
       with:
