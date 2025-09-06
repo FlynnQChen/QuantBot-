@@ -1,31 +1,29 @@
-name: QuantBot CI & Packaging 
+name: QuantBot CI & Packaging
  
 on:
   push:
     branches: [main]
   pull_request:
-    branches: [main] 
+    branches: [main]
  
 jobs:
   build-and-package:
     runs-on: windows-latest 
     steps:
-    - name: Configure Git
-      run: |
-        git config --global core.protectNTFS  false
-        git config --global core.longpaths  true 
+    - name: Configure Git 
+      run: git config --global core.protectNTFS  false
  
     - uses: actions/checkout@v4
       with:
         sparse-checkout: |
           *
           !configs/strategy_presets/
-        fetch-depth: 1 
+        fetch-depth: 1
  
-    - name: Copy strategy files safely 
+    - name: Prepare environment 
       run: |
         mkdir -p configs/strategy_presets
-        cp configs/strategy_presets/*.yaml configs/strategy_presets/ 2>/dev/null || true 
+        cp configs/strategy_presets/*.yaml configs/strategy_presets/ 2>nul || exit 0 
  
     - name: Install TA-Lib
       run: |
@@ -33,32 +31,22 @@ jobs:
         echo "TA_LIBRARY_PATH=C:\Program Files\ta-lib\lib" >> $env:GITHUB_ENV 
         echo "TA_INCLUDE_PATH=C:\Program Files\ta-lib\include" >> $env:GITHUB_ENV
  
-    - name: Setup Python 
-      uses: actions/setup-python@v5
+    - name: Setup Python
+      uses: actions/setup-python@v5 
       with:
-        python-version: '3.11'
+        python-version: '3.11' 
  
     - name: Install dependencies
       run: |
-        python -m pip install --upgrade pip 
-        pip install numpy Cython TA-Lib 
-        pip install -r requirements.txt 
-        pip install pyinstaller 
+        pip install --upgrade pip
+        pip install numpy Cython TA-Lib pyinstaller 
+        if exist requirements.txt  pip install -r requirements.txt  
  
-    - name: Build with PyInstaller 
+    - name: Build executable 
       run: |
-        # 使用安全路径构建 
-        $spec = @'
-# -*- mode: python -*-
-a = Analysis(
-    ['main.py'], 
-    binaries=[],
-    datas=[('configs/strategy_presets/*.yaml', 'configs/strategy_presets')],
-    hiddenimports=[]
-)
-exe = EXE(a.scripts,  name='QuantBot', console=True)
-'@ 
-        $spec | Out-File -FilePath build.spec  -Encoding utf8
+        # 完全安全的单行spec配置 
+        echo 'a = Analysis(["main.py"],  datas=[("configs/strategy_presets/*.yaml", "configs/strategy_presets")])' > build.spec  
+        echo 'exe = EXE(a.scripts,  name="QuantBot")' >> build.spec 
         pyinstaller --noconfirm --onefile build.spec 
  
     - name: Upload artifact
