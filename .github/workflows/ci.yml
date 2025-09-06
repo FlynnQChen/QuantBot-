@@ -1,62 +1,58 @@
-name: QuantBot CI Pipeline
+name: QuantBot CI Pipeline 
  
-on:
-  push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ] 
+on: [push, pull_request]
  
 jobs:
   build:
-    runs-on: ubuntu-latest 
-    defaults:
-      run:
-        working-directory: QuantBot  # 关键修复点 
-    
+    runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
-    
-    - name: Setup Python 
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.11'
+    - uses: actions/checkout@v3 
  
-    - name: Install TA-Lib dependencies 
+    # 关键步骤1：显式创建项目目录结构 
+    - name: Setup project structure
       run: |
-        sudo apt-get update
-        sudo apt-get install -y \
-          build-essential \
-          wget \
-          python3-dev
+        echo "当前工作目录: $(pwd)"
+        mkdir -p QuantBot/libs 
+        echo "创建的目录结构:"
+        find . -maxdepth 3 -type d | sort
  
-    - name: Build TA-Lib 
+    # 关键步骤2：使用绝对路径构建TA-Lib 
+    - name: Build TA-Lib
       run: |
-        mkdir -p libs/ta-lib 
-        cd libs/ta-lib
-        wget https://downloads.sourceforge.net/project/ta-lib/ta-lib/0.4.0/ta-lib-0.4.0-src.tar.gz  
+        TA_LIB_DIR="$GITHUB_WORKSPACE/QuantBot/libs/ta-lib"
+        mkdir -p "$TA_LIB_DIR"
+        cd "$TA_LIB_DIR"
+        
+        wget https://downloads.sourceforge.net/project/ta-lib/ta-lib/0.4.0/ta-lib-0.4.0-src.tar.gz 
         tar -xzf ta-lib-0.4.0-src.tar.gz  --strip-components=1 
-        ./configure --prefix=$PWD/install
+        ./configure --prefix="$TA_LIB_DIR/install"
         make -j$(nproc)
         make install
  
-    - name: Install Python dependencies
+        # 验证编译结果
+        ls "$TA_LIB_DIR/install/lib/libta_lib.so"  || exit 1 
+ 
+    # 关键步骤3：正确设置Python环境 
+    - name: Install Python dependencies 
       run: |
-        pip install --upgrade pip
-        pip install numpy Cython 
+        cd "$GITHUB_WORKSPACE/QuantBot"
         
-        # 使用绝对路径设置环境变量 
+        # 设置全局环境变量 
         echo "TA_LIBRARY_PATH=$GITHUB_WORKSPACE/QuantBot/libs/ta-lib/install/lib" >> $GITHUB_ENV 
         echo "TA_INCLUDE_PATH=$GITHUB_WORKSPACE/QuantBot/libs/ta-lib/install/include" >> $GITHUB_ENV
         
-        # 安装TA-Lib Python包装器
+        pip install numpy Cython 
         TA_LIBRARY_PATH=$GITHUB_WORKSPACE/QuantBot/libs/ta-lib/install/lib \
         TA_INCLUDE_PATH=$GITHUB_WORKSPACE/QuantBot/libs/ta-lib/install/include \
-        pip install TA-Lib 
+        pip install TA-Lib
         
-        # 可选：安装requirements.txt 
-        [ -f requirements.txt  ] && pip install -r requirements.txt  || echo "No requirements.txt  found"
+        [ -f requirements.txt  ] && pip install -r requirements.txt  
  
     - name: Verify installation 
       run: |
-        python -c "import talib; print('TA-Lib version:', talib.__version__)"
-        python -c "import numpy; print('NumPy version:', numpy.__version__)"
+        cd "$GITHUB_WORKSPACE/QuantBot"
+        python -c "
+        import os, talib 
+        print(f'TA-Lib loaded from: {os.path.dirname(talib.__file__)}') 
+        print('RSI test:', talib.RSI([1,2,3,4,5]))
+        " 
