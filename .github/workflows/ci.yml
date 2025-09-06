@@ -2,13 +2,13 @@ name: TA-Lib Installation Pipeline
  
 on:
   push:
-    branches: [ main ] 
+    branches: [ main ]
   pull_request:
     branches: [ main ]
  
 jobs:
   install-ta-lib:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest 
     timeout-minutes: 30 
     
     steps:
@@ -22,49 +22,51 @@ jobs:
           automake \
           libtool \
           pkg-config \
-          gfortran
+          gfortran 
  
-    - name: Download and build TA-Lib 
+    - name: Download and build TA-Lib
       run: |
         # 下载源码（双源保障）
         wget -O ta-lib.tar.gz  https://github.com/TA-Lib/ta-lib/archive/refs/tags/v0.4.0.tar.gz  || \
-        wget -O ta-lib.tar.gz  https://downloads.sourceforge.net/project/ta-lib/ta-lib/0.4.0/ta-lib-0.4.0-src.tar.gz 
+        wget -O ta-lib.tar.gz  https://downloads.sourceforge.net/project/ta-lib/ta-lib/0.4.0/ta-lib-0.4.0-src.tar.gz  
         
-        # 规范化目录结构 
-        mkdir -p ta-lib-src
-        tar -xzf ta-lib.tar.gz  -C ta-lib-src --strip-components=1 
-        cd ta-lib-src 
+        # 规范化目录结构
+        mkdir -p ta-lib-src 
+        tar -xzf ta-lib.tar.gz  -C ta-lib-src --strip-components=1
+        cd ta-lib-src
         
         # 构建系统修复 
         [ -f configure ] || {
-          aclocal 
+          aclocal
           autoheader
           automake --add-missing
           autoconf 
         }
         
         # 关键配置修改 
-        sed -i 's/AM_INIT_AUTOMAKE.*/AM_INIT_AUTOMAKE([subdir-objects foreign])/' configure.ac  2>/dev/null || true 
+        sed -i 's/AM_INIT_AUTOMAKE.*/AM_INIT_AUTOMAKE([subdir-objects foreign])/' configure.ac  2>/dev/null || true
         
-        # 编译配置 
+        # 编译配置
         ./configure \
           --prefix=/usr \
           --disable-static \
           --enable-shared \
-          --disable-dependency-tracking
+          --disable-dependency-tracking 
         
         # 安全编译（单线程）
-        make -j1 
-        sudo make install
-        sudo ldconfig 
+        make -j1
+        sudo make install 
+        sudo ldconfig
  
-    - name: Install Python wrapper 
+    - name: Set up Python
       uses: actions/setup-python@v4 
       with:
         python-version: '3.11'
+ 
+    - name: Install Python wrapper
       run: |
         python -m pip install --upgrade pip wheel
-        pip install numpy==1.24.3 Cython==3.0.0
+        pip install numpy==1.24.3 Cython==3.0.0 
         
         # 使用维护版本安装 
         TA_LIBRARY_PATH=/usr/lib \
@@ -74,18 +76,14 @@ jobs:
           --global-option="-L/usr/lib" \
           --global-option="-I/usr/include" \
           --no-cache-dir \
-          --no-build-isolation
+          --no-build-isolation 
  
     - name: Verify installation
       run: |
         # 系统级验证 
         ls /usr/lib/libta_lib.so*  && ls /usr/include/ta-lib/
         
-        # Python级验证
-        python -c """
-        import talib
-        print(f'TA-Lib {talib.__version__} loaded')
-        from talib import RSI, MACD 
-        print('RSI and MACD test passed')
-        assert len(talib.get_functions())  > 150, 'Incomplete function set'
-        """
+        # Python级验证 
+        python -c "import talib; print(f'TA-Lib {talib.__version__} loaded')"
+        python -c "from talib import RSI, MACD; print('RSI and MACD test passed')"
+        python -c "import talib; assert len(talib.get_functions())  > 150, 'Incomplete function set'"
