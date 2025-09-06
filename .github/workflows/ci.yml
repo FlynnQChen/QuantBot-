@@ -1,26 +1,36 @@
-name: TA-Lib Bulletproof Install 
+name: Install TA-Lib on Ubuntu 24.04
  
 on: [push, pull_request]
  
 jobs:
   install:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
     - uses: actions/checkout@v3 
     
-    - name: Install prebuilt TA-Lib 
+    - name: Install dependencies and build TA-Lib 
       run: |
-        # 使用Ubuntu官方源安装（100%可靠）
-        sudo apt-get update 
-        sudo apt-get install -y libta-lib-dev ta-lib 
+        # 1. 安装编译依赖
+        sudo apt-get update
+        sudo apt-get install -y \
+          build-essential \
+          wget \
+          cmake \
+          automake \
+          libtool \
+          pkg-config 
+        
+        # 2. 下载并编译TA-Lib
+        wget https://downloads.sourceforge.net/project/ta-lib/ta-lib/0.4.0/ta-lib-0.4.0-src.tar.gz  
+        tar -xzf ta-lib-0.4.0-src.tar.gz 
+        cd ta-lib/
+        ./configure --prefix=/usr 
+        make
+        sudo make install 
         sudo ldconfig 
         
-        # 验证安装 
-        ls /usr/lib/libta_lib.so*  && ls /usr/include/ta-lib/
-        
-        # 安装Python封装（使用预编译wheel）
-        pip install --only-binary=TA-Lib TA-Lib
-        
-        # 终极验证
-        python -c "import talib; print(f'TA-Lib {talib.__version__} loaded'); \
-                 from talib import RSI, MACD; print('Indicators working')"
+        # 3. 安装Python封装 
+        pip install numpy Cython 
+        TA_LIBRARY_PATH=/usr/lib \ 
+        TA_INCLUDE_PATH=/usr/include \
+        pip install TA-Lib 
