@@ -1,40 +1,26 @@
-name: QuantBot Bulletproof Build
+name: QuantBot Build
  
 on: [push]
  
 jobs:
-  package:
-    runs-on: windows-latest 
+  build:
+    runs-on: ubuntu-latest  # 关键修改：切换到Linux环境 
     steps:
-    - name: 跳过问题目录检出 
-      uses: actions/checkout@v4
-      with:
-        sparse-checkout: |
-          * 
-          !configs/strategy_presets/
-        fetch-depth: 0  # 关键修改 
+    - uses: actions/checkout@v4 
  
-    - name: 手动创建配置目录
+    - name: Install dependencies 
       run: |
-        mkdir -p configs/strategy_presets
-        # 从Git历史中单独提取配置文件 
-        git show origin/main:configs/strategy_presets/rsi_macd.yaml  > configs/strategy_presets/rsi_macd.yaml 
-        git show origin/main:configs/strategy_presets/custom_strategy.yaml  > configs/strategy_presets/custom_strategy.yaml 
+        sudo apt-get install -y build-essential
+        wget http://prdownloads.sourceforge.net/ta-lib/ta-lib-0.4.0-src.tar.gz 
+        tar -xzf ta-lib-0.4.0-src.tar.gz  
+        cd ta-lib && ./configure && make && sudo make install
  
-    - name: 安装依赖
+    - name: Build executable 
       run: |
-        choco install -y ta-lib
         pip install numpy TA-Lib pyinstaller 
- 
-    - name: 构建可执行文件 
-      run: |
-        pyinstaller --onefile `
-          --add-data "configs/strategy_presets;configs/strategy_presets" `
-          --noconfirm `
-          --clean `
-          main.py  
+        pyinstaller --onefile --add-data 'configs/strategy_presets/*.yaml:configs/strategy_presets' main.py  
  
     - uses: actions/upload-artifact@v4
       with:
-        name: QuantBot-Windows 
-        path: dist/main.exe 
+        name: QuantBot-Linux
+        path: dist/main
