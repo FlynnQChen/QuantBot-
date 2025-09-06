@@ -1,4 +1,4 @@
-name: QuantBot Production Build 
+name: QuantBot Bulletproof Build
  
 on: [push]
  
@@ -6,30 +6,35 @@ jobs:
   package:
     runs-on: windows-latest 
     steps:
-    - name: 强制重命名问题目录
+    - name: 跳过问题目录检出 
+      uses: actions/checkout@v4
+      with:
+        sparse-checkout: |
+          * 
+          !configs/strategy_presets/
+        fetch-depth: 0  # 关键修改 
+ 
+    - name: 手动创建配置目录
       run: |
-        # 临时重命名问题目录
-        git clone https://github.com/FlynnQChen/QuantBot-.git  repo-temp
-        cd repo-temp
-        ren "configs\strategy_presets" strategy_configs 
-        cd ..
-        move repo-temp\* .
-        rmdir /s /q repo-temp
+        mkdir -p configs/strategy_presets
+        # 从Git历史中单独提取配置文件 
+        git show origin/main:configs/strategy_presets/rsi_macd.yaml  > configs/strategy_presets/rsi_macd.yaml 
+        git show origin/main:configs/strategy_presets/custom_strategy.yaml  > configs/strategy_presets/custom_strategy.yaml 
  
     - name: 安装依赖
       run: |
         choco install -y ta-lib
-        pip install numpy TA-Lib pyinstaller
+        pip install numpy TA-Lib pyinstaller 
  
-    - name: 暴力打包
+    - name: 构建可执行文件 
       run: |
-        pyinstaller --onefile ^ 
-          --add-data "configs/strategy_configs;configs/strategy_configs" ^
-          --noconfirm ^ 
-          --clean ^
-          main.py 
+        pyinstaller --onefile `
+          --add-data "configs/strategy_presets;configs/strategy_presets" `
+          --noconfirm `
+          --clean `
+          main.py  
  
-    - uses: actions/upload-artifact@v4 
+    - uses: actions/upload-artifact@v4
       with:
-        name: QuantBot-Executable 
+        name: QuantBot-Windows 
         path: dist/main.exe 
