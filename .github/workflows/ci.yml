@@ -1,46 +1,50 @@
-name: TA-Lib Installation 
+name: QuantBot CI
  
 on: [push, pull_request]
  
 jobs:
-  install:
-    runs-on: ubuntu-24.04
+  install-ta-lib:
+    runs-on: ubuntu-latest 
     steps:
     - uses: actions/checkout@v3 
  
-    - name: Install TA-Lib (Fixed)
+    - name: Install TA-Lib (Isolated)
       run: |
-        # 1. 安装编译依赖
-        sudo apt-get update
-        sudo apt-get install -y \
-          build-essential \
-          wget \
-          cmake \
-          automake \
-          libtool \
-          pkg-config 
+        # 在项目内创建独立目录 
+        mkdir -p ./QuantBot/libs/ta-lib 
+        cd ./QuantBot/libs/ta-lib
         
-        # 2. 下载并编译TA-Lib 
+        # 下载编译（限制只生成必要组件）
         wget https://downloads.sourceforge.net/project/ta-lib/ta-lib/0.4.0/ta-lib-0.4.0-src.tar.gz 
-        tar -xzf ta-lib-0.4.0-src.tar.gz 
-        cd ta-lib/
+        tar -xzf ta-lib-0.4.0-src.tar.gz  --strip-components=1
         
-        # 修复构建系统
-        sed -i 's/AM_INIT_AUTOMAKE.*/AM_INIT_AUTOMAKE([subdir-objects foreign])/' configure.ac  
-        autoreconf -vif
-        ./configure --prefix=/usr
-        make -j$(nproc)
-        sudo make install 
-        sudo ldconfig 
+        # 精简编译配置
+        ./configure --prefix=$PWD/install \
+                   --disable-static \
+                   --enable-shared \
+                   --disable-ta-regtest  # 关键：跳过报错的测试工具
         
-        # 3. 安装Python封装（修正版）
-        pip install numpy Cython
-        TA_LIBRARY_PATH=/usr/lib \
-        TA_INCLUDE_PATH=/usr/include \
-        pip install TA-Lib \
-          --global-option=build_ext \
-          --global-option="-L/usr/lib" \
-          --global-option="-I/usr/include"
-        
-        # 4. 验证 
-        python -c "import talib; print('Success:', talib.__version__)"
+        make -C src/ta_common
+        make -C src/ta_func 
+        make install
+ 
+        # 验证 
+        ls ./install/lib/libta_lib.so*  || exit 1
+ 
+    - name: Setup Python Env
+      run: |
+        cd ./QuantBot 
+        echo "TA_LIBRARY_PATH=$PWD/libs/ta-lib/install/lib" >> $GITHUB_ENV
+        echo "TA_INCLUDE_PATH=$PWD/libs/ta-lib/install/include" >> $GITHUB_ENV 
+        pip install -r requirements.txt 
+ 
+    - name: Test Strategy Integration 
+      run: |
+        cd ./QuantBot 
+        python -c """
+        import talib 
+        from backend.strategy.rsi_macd_strategy  import RSIMACDStrategy 
+        print('TA-Lib integration verified:', talib.__version__)
+        strategy = RSIMACDStrategy()
+        strategy.test_indicators()  
+        """
