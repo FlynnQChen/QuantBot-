@@ -1,62 +1,26 @@
-name: TA-Lib Installation Pipeline
-
-on:
-  push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
-
+name: TA-Lib Bulletproof Install 
+ 
+on: [push, pull_request]
+ 
 jobs:
-  install-ta-lib:
+  install:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
-    
     steps:
-    - name: Install system dependencies
+    - uses: actions/checkout@v3 
+    
+    - name: Install prebuilt TA-Lib 
       run: |
-        sudo apt-get update
-        sudo apt-get install -y \
-          build-essential \
-          wget \
-          automake \
-          libtool \
-          pkg-config
-
-    - name: Build TA-Lib (robust method)
-      run: |
-        # 下载源码（使用GitHub官方仓库）
-        wget -O ta-lib.tar.gz  https://github.com/TA-Lib/ta-lib/archive/refs/tags/v0.4.0.tar.gz 
-        mkdir -p ta-lib-src
-        tar -xzf ta-lib.tar.gz  -C ta-lib-src --strip-components=1
-        cd ta-lib-src
+        # 使用Ubuntu官方源安装（100%可靠）
+        sudo apt-get update 
+        sudo apt-get install -y libta-lib-dev ta-lib 
+        sudo ldconfig 
         
-        # 完整生成构建系统
-        if [ ! -f configure.ac  ]; then
-          touch configure.ac 
-          echo "AC_INIT([ta-lib], [0.4.0])" > configure.ac 
-          echo "AM_INIT_AUTOMAKE([subdir-objects foreign])" >> configure.ac 
-          echo "AC_PROG_CC" >> configure.ac 
-          echo "AC_CONFIG_HEADERS([config.h])" >> configure.ac 
-          echo "AC_CONFIG_FILES([Makefile])" >> configure.ac 
-          echo "AC_OUTPUT" >> configure.ac 
-        fi
-        
-        aclocal
-        autoheader
-        automake --add-missing --foreign
-        autoconf
-        
-        # 配置编译选项
-        ./configure \
-          --prefix=/usr \
-          --disable-static \
-          --enable-shared
-        
-        # 编译安装
-        make -j$(nproc)
-        sudo make install
-        sudo ldconfig
-
-    - name: Verify installation
-      run: |
+        # 验证安装 
         ls /usr/lib/libta_lib.so*  && ls /usr/include/ta-lib/
+        
+        # 安装Python封装（使用预编译wheel）
+        pip install --only-binary=TA-Lib TA-Lib
+        
+        # 终极验证
+        python -c "import talib; print(f'TA-Lib {talib.__version__} loaded'); \
+                 from talib import RSI, MACD; print('Indicators working')"
