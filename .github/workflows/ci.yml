@@ -1,4 +1,4 @@
-name: CI Pipeline
+name: CI Pipeline 
  
 on:
   push:
@@ -8,15 +8,15 @@ on:
  
 jobs:
   build:
-    runs-on: ubuntu-latest 
-    timeout-minutes: 30 
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
     
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v3 
  
-    - name: Install system dependencies
+    - name: Install system dependencies 
       run: |
-        sudo apt-get update
+        sudo apt-get update 
         sudo apt-get install -y \
           build-essential \
           wget \
@@ -24,32 +24,38 @@ jobs:
           automake \
           libtool \
           pkg-config \
-          gfortran 
+          gfortran
  
-    - name: Download and build TA-Lib (patched)
+    - name: Download and build TA-Lib (robust version)
       run: |
-        # 使用备用下载源 
-        wget https://github.com/TA-Lib/ta-lib/archive/refs/tags/v0.4.0.tar.gz  -O ta-lib-0.4.0.tar.gz  || 
-          wget https://downloads.sourceforge.net/project/ta-lib/ta-lib/0.4.0/ta-lib-0.4.0-src.tar.gz 
+        # 清理可能存在的旧文件
+        rm -f ta-lib-*.tar.gz  
         
-        tar -xzf ta-lib-*.tar.gz  
-        cd ta-lib-*
+        # 使用固定文件名下载 
+        wget -O ta-lib-src.tar.gz  \
+          https://github.com/TA-Lib/ta-lib/archive/refs/tags/v0.4.0.tar.gz  ||
+        wget -O ta-lib-src.tar.gz  \
+          https://downloads.sourceforge.net/project/ta-lib/ta-lib/0.4.0/ta-lib-0.4.0-src.tar.gz 
         
-        # 修复可能缺失的构建文件
+        # 解压到固定目录名 
+        mkdir -p ta-lib-src
+        tar -xzf ta-lib-src.tar.gz  -C ta-lib-src --strip-components=1 
+        
+        cd ta-lib-src 
+        
+        # 自动修复构建系统 
         if [ ! -f configure ]; then
           autoreconf -fi
         fi 
         
-        # 应用关键修复补丁
-        sed -i.bak  's/MAKE="make -j\${MAKE_JOBS}"/MAKE="make"/' configure 
-        sed -i.bak  's/make -j\${MAKE_JOBS}/make/' Makefile.* 
+        # 应用关键补丁 
+        sed -i.bak  's/make -j\${MAKE_JOBS}/make/' configure Makefile.*
         
         ./configure \
           --prefix=/usr \
           --build=$(uname -m)-linux-gnu \
           --disable-static \
-          --enable-shared \
-          --disable-dependency-tracking
+          --enable-shared 
         
         make -j1
         sudo make install 
@@ -60,10 +66,10 @@ jobs:
       with:
         python-version: '3.10'
  
-    - name: Install Python dependencies 
+    - name: Install Python dependencies
       run: |
-        python -m pip install --upgrade pip wheel 
-        pip install numpy==1.24.3
+        python -m pip install --upgrade pip wheel
+        pip install numpy==1.24.3 
         pip install Cython==3.0.0
         TA_LIBRARY_PATH=/usr/lib TA_INCLUDE_PATH=/usr/include \
           pip install TA-Lib==0.4.24 \
@@ -71,9 +77,9 @@ jobs:
           --global-option="-L/usr/lib" \
           --global-option="-I/usr/include" \
           --no-cache-dir \
-          --no-build-isolation
+          --no-build-isolation 
  
-    - name: Verify installation 
+    - name: Verify installation
       run: |
-        python -c "import talib; print('TA-Lib functions:', len(talib.get_functions()))" 
-        python -c "import talib; print('TA-Lib version:', talib.__version__)"
+        python -c "import talib; print('TA-Lib loaded successfully')"
+        python -c "from talib import RSI; print('RSI function available')"
