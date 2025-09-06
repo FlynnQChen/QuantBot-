@@ -1,10 +1,10 @@
-name: QuantBot CI & Packaging
+name: QuantBot CI & Packaging 
  
 on: 
   push:
-    branches: [ main ]
+    branches: [main]
   pull_request:
-    branches: [ main ]
+    branches: [main]
  
 jobs:
   build-and-package:
@@ -13,13 +13,13 @@ jobs:
       matrix:
         python-version: ['3.11']
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v3 
  
     - name: Install TA-Lib dependencies
       run: |
         choco install -y ta-lib --version=0.4.0.1
-        echo "TA_LIBRARY_PATH=C:\Program Files\ta-lib\lib" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-        echo "TA_INCLUDE_PATH=C:\Program Files\ta-lib\include" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append 
+        echo "TA_LIBRARY_PATH=C:\Program Files\ta-lib\lib" >> $env:GITHUB_ENV 
+        echo "TA_INCLUDE_PATH=C:\Program Files\ta-lib\include" >> $env:GITHUB_ENV
  
     - name: Set up Python ${{ matrix.python-version  }}
       uses: actions/setup-python@v4
@@ -35,8 +35,8 @@ jobs:
  
     - name: Package with PyInstaller
       run: |
-        # 创建打包配置 
-        $specContent = @"
+        # Create build.spec 
+        $spec = @'
 # -*- mode: python -*-
 block_cipher = None 
  
@@ -75,14 +75,15 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-)
-"@ 
-        $specContent | Out-File -FilePath build.spec  -Encoding utf8
+) 
+'@
+        $spec | Out-File -FilePath build.spec  -Encoding utf8 
+        
+        # Run PyInstaller 
+        pyinstaller --noconfirm --onefile --windowed build.spec 
  
-        pyinstaller --noconfirm --onefile --windowed build.spec  
- 
-    - name: Upload artifact
-      uses: actions/upload-artifact@v3
+    - name: Upload artifact 
+      uses: actions/upload-artifact@v3 
       with:
-        name: QuantBot-Windows 
-        path: dist/QuantBot.exe 
+        name: QuantBot-Windows
+        path: dist/QuantBot.exe  
