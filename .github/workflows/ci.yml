@@ -15,7 +15,7 @@ jobs:
     steps:
     - uses: actions/checkout@v3 
  
-    - name: Install TA-Lib dependencies
+    - name: Install TA-Lib dependencies 
       run: |
         choco install -y ta-lib --version=0.4.0.1
         echo "TA_LIBRARY_PATH=C:\Program Files\ta-lib\lib" >> $env:GITHUB_ENV 
@@ -26,63 +26,26 @@ jobs:
       with:
         python-version: ${{ matrix.python-version  }}
  
-    - name: Install Python dependencies
+    - name: Install Python dependencies 
       run: |
         python -m pip install --upgrade pip 
         pip install numpy Cython TA-Lib 
         pip install -r requirements.txt  
         pip install pyinstaller
  
-    - name: Package with PyInstaller
+    - name: Package with PyInstaller 
       run: |
-        # Create build.spec 
-        $spec = @'
-# -*- mode: python -*-
-block_cipher = None 
- 
-a = Analysis(
-    ['main.py'], 
-    binaries=[],
-    datas=[],
-    hiddenimports=[],
-    hookspath=[],
-    hooksconfig={},
-    runtime_hooks=[],
-    excludes=[],
-    win_no_prefer_redirects=False,
-    win_private_assemblies=False,
-    cipher=block_cipher,
-    noarchive=False,
-)
-pyz = PYZ(a.pure,  a.zipped_data,  cipher=block_cipher)
-exe = EXE(
-    pyz,
-    a.scripts, 
-    a.binaries, 
-    a.zipfiles, 
-    a.datas, 
-    [],
-    name='QuantBot',
-    debug=False,
-    bootloader_ignore_signals=False,
-    strip=False,
-    upx=True,
-    upx_exclude=[],
-    runtime_tmpdir=None,
-    console=True,
-    disable_windowed_tracker=False,
-    argv_emulation=False,
-    target_arch=None,
-    codesign_identity=None,
-    entitlements_file=None,
-) 
-'@
-        $spec | Out-File -FilePath build.spec  -Encoding utf8 
+        # Create minimal build.spec  without the here-string 
+        echo "# -*- mode: python -*-" > build.spec  
+        echo "from PyInstaller.building.build_main  import Analysis, EXE, PYZ" >> build.spec  
+        echo "a = Analysis(['main.py'],  binaries=[], datas=[], hiddenimports=[])" >> build.spec  
+        echo "pyz = PYZ(a.pure)"  >> build.spec 
+        echo "exe = EXE(pyz, a.scripts,  name='QuantBot', console=True)" >> build.spec 
         
         # Run PyInstaller 
-        pyinstaller --noconfirm --onefile --windowed build.spec 
+        pyinstaller --noconfirm --onefile --windowed build.spec  
  
-    - name: Upload artifact 
+    - name: Upload artifact
       uses: actions/upload-artifact@v3 
       with:
         name: QuantBot-Windows
