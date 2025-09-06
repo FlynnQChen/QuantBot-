@@ -1,4 +1,4 @@
-name: CI Pipeline 
+name: CI Pipeline
  
 on:
   push:
@@ -8,15 +8,20 @@ on:
  
 jobs:
   build:
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
+    runs-on: ubuntu-latest 
+    timeout-minutes: 30 
     
     steps:
-    - uses: actions/checkout@v3 
+    - uses: actions/checkout@v3
  
-    - name: Install system dependencies 
+    - name: Set up Python 3.11 (recommended for TA-Lib)
+      uses: actions/setup-python@v4 
+      with:
+        python-version: '3.11'
+ 
+    - name: Install system dependencies
       run: |
-        sudo apt-get update 
+        sudo apt-get update
         sudo apt-get install -y \
           build-essential \
           wget \
@@ -24,35 +29,25 @@ jobs:
           automake \
           libtool \
           pkg-config \
-          gfortran
+          gfortran 
  
-    - name: Build TA-Lib from source
+    - name: Build TA-Lib C library
       run: |
-        # 下载官方源码
-        wget -O ta-lib-src.tar.gz  https://downloads.sourceforge.net/project/ta-lib/ta-lib/0.4.0/ta-lib-0.4.0-src.tar.gz 
-        tar -xzf ta-lib-src.tar.gz  
+        wget -O ta-lib.tar.gz  https://downloads.sourceforge.net/project/ta-lib/ta-lib/0.4.0/ta-lib-0.4.0-src.tar.gz 
+        tar -xzf ta-lib.tar.gz  
         cd ta-lib/
-        
-        # 关键修复：禁用并行编译
-        sed -i 's/make -j/make /' configure Makefile.* 
-        
-        ./configure \
-          --prefix=/usr \
-          --disable-static \
-          --enable-shared 
-        
-        make -j1
-        sudo make install 
-        sudo ldconfig
+        ./configure --prefix=/usr 
+        make -j$(nproc)
+        sudo make install
+        sudo ldconfig 
  
-    - name: Install Python TA-Lib (with fixes)
+    - name: Install Python dependencies 
       run: |
-        python -m pip install --upgrade pip wheel
-        pip install numpy==1.24.3 
-        pip install Cython==3.0.0
+        python -m pip install --upgrade "pip<23.3" "setuptools<66.0.0"
+        pip install numpy==1.24.3 Cython==3.0.0
         
-        # 使用修复版的TA-Lib安装 
-        pip install git+https://github.com/mrjbq7/ta-lib.git@TA_Lib-0.4.24  \
+        # 使用兼容版本的TA-Lib安装 
+        pip install TA-Lib==0.4.24 \
           --global-option=build_ext \
           --global-option="-L/usr/lib" \
           --global-option="-I/usr/include" \
@@ -62,4 +57,4 @@ jobs:
     - name: Verify installation
       run: |
         python -c "import talib; print('TA-Lib version:', talib.__version__)"
-        python -c "from talib import RSI, MACD; print('Indicators loaded successfully')"
+        python -c "from talib import RSI, MACD; print('Indicators working')"
