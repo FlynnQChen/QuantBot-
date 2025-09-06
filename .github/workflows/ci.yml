@@ -8,15 +8,15 @@ on:
  
 jobs:
   build:
-    runs-on: ubuntu-latest 
-    timeout-minutes: 30 
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
     
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v3 
  
-    - name: Install system dependencies
+    - name: Install system dependencies 
       run: |
-        sudo apt-get update
+        sudo apt-get update 
         sudo apt-get install -y \
           build-essential \
           wget \
@@ -24,36 +24,37 @@ jobs:
           libtool \
           pkg-config 
  
-    - name: Build TA-Lib with full autotools 
+    - name: Build TA-Lib (with warnings fix)
       run: |
-        # 下载源码（使用GitHub官方镜像）
-        wget -O ta-lib.tar.gz  https://github.com/TA-Lib/ta-lib/archive/refs/tags/v0.4.0.tar.gz 
+        # 下载源码 
+        wget -O ta-lib.tar.gz  https://downloads.sourceforge.net/project/ta-lib/ta-lib/0.4.0/ta-lib-0.4.0-src.tar.gz 
         tar -xzf ta-lib.tar.gz  
-        cd ta-lib-*
+        cd ta-lib/
         
-        # 关键修复：完整生成构建系统
-        aclocal 
-        autoheader 
-        automake --add-missing --foreign 
-        autoconf
+        # 关键修复：添加subdir-objects选项 
+        sed -i 's/^AM_INIT_AUTOMAKE.*/AM_INIT_AUTOMAKE([subdir-objects foreign])/' configure.ac  
         
-        # 启用subdir-objects 
-        sed -i 's/AM_INIT_AUTOMAKE.*/AM_INIT_AUTOMAKE([subdir-objects foreign])/' configure.ac  
-        
-        # 重新生成构建系统
+        # 生成构建系统
         autoreconf -vif 
         
-        # 配置编译选项 
-        ./configure \ 
+        # 配置（忽略子目录警告）
+        ./configure \
           --prefix=/usr \
           --disable-static \
-          --enable-shared
+          --enable-shared 
         
         # 编译安装
         make -j$(nproc)
         sudo make install 
         sudo ldconfig
  
+    - name: Install Python wrapper 
+      run: |
+        pip install numpy 
+        TA_LIBRARY_PATH=/usr/lib TA_INCLUDE_PATH=/usr/include \
+          pip install TA-Lib
+ 
     - name: Verify installation 
       run: |
-        ls /usr/lib/libta_lib.so*  && ls /usr/include/ta-lib/
+        python -c "import talib; print('TA-Lib imported successfully')"
+        ls /usr/lib/libta_lib.so* 
