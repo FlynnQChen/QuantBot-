@@ -1,26 +1,42 @@
-name: QuantBot Build
+name: Windows Executable Build 
  
 on: [push]
  
 jobs:
   build:
-    runs-on: ubuntu-latest  # 关键修改：切换到Linux环境 
+    runs-on: windows-latest
     steps:
-    - uses: actions/checkout@v4 
+    # 1. 跳过问题目录的检出
+    - uses: actions/checkout@v4
+      with:
+        path: source  # 指定独立检出目录
  
-    - name: Install dependencies 
+    # 2. 创建干净的构建环境 
+    - name: Setup Build Directory 
       run: |
-        sudo apt-get install -y build-essential
-        wget http://prdownloads.sourceforge.net/ta-lib/ta-lib-0.4.0-src.tar.gz 
-        tar -xzf ta-lib-0.4.0-src.tar.gz  
-        cd ta-lib && ./configure && make && sudo make install
+        mkdir build
+        robocopy source build /E /XD source\configs\strategy_presets
+        mkdir build\configs\strategy_presets
+        copy source\configs\strategy_presets\*.yaml build\configs\strategy_presets\
  
-    - name: Build executable 
+    # 3. 安装必要组件 
+    - name: Install Requirements 
       run: |
-        pip install numpy TA-Lib pyinstaller 
-        pyinstaller --onefile --add-data 'configs/strategy_presets/*.yaml:configs/strategy_presets' main.py  
+        choco install -y ta-lib 
+        pip install numpy TA-Lib pyinstaller
  
+    # 4. 构建可执行文件
+    - name: Build Executable
+      working-directory: ./build  # 关键：在干净目录中构建
+      run: |
+        pyinstaller --onefile ^ 
+          --add-data "configs/strategy_presets/*.yaml;configs/strategy_presets" ^
+          --noconfirm ^
+          --clean ^ 
+          main.py  
+ 
+    # 5. 上传成品 
     - uses: actions/upload-artifact@v4
       with:
-        name: QuantBot-Linux
-        path: dist/main
+        name: QuantBot-Windows
+        path: build/dist/main.exe 
