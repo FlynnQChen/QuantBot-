@@ -1,6 +1,6 @@
 name: QuantBot CI & Packaging
  
-on: 
+on:
   push:
     branches: [main]
   pull_request:
@@ -8,51 +8,45 @@ on:
  
 jobs:
   build-and-package:
-    runs-on: windows-latest
+    runs-on: windows-latest 
     env:
-      GIT_WILDCARD_PATHSPECS: 0  # 关键修复：禁用通配符路径规范 
+      GIT_REDIRECT_STDERR: 2>&1  # 重定向Git错误输出 
     steps:
-    - name: Configure Git 
+    - name: Configure Git
       run: |
         git config --global core.protectNTFS  false
-        git config --global core.longpaths  true
+        git config --global core.longpaths  true 
+        git config --global core.symlinks  false 
  
     - uses: actions/checkout@v4
-      with: 
-        sparse-checkout: |  # 明确指定要检出的路径 
-          /*
+      with:
+        sparse-checkout: |
+          * 
           !configs/strategy_presets/
-          configs/strategy_presets/*.yaml
+          configs/strategy_presets/
+        fetch-depth: 1 
+        lfs: false
  
-    - name: Install TA-Lib
+    - name: Safe file copy
       run: |
-        choco install -y ta-lib --version=0.4.0.1
-        echo "TA_LIBRARY_PATH=C:\Program Files\ta-lib\lib" >> $env:GITHUB_ENV 
-        echo "TA_INCLUDE_PATH=C:\Program Files\ta-lib\include" >> $env:GITHUB_ENV
- 
-    - name: Setup Python 
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.11'
- 
-    - name: Build application 
-      run: |
-        # 创建安全路径的临时目录 
-        $tempDir = New-Item -ItemType Directory -Path "$env:RUNNER_TEMP\build" -Force 
-        Copy-Item -Path ".\*" -Destination $tempDir -Recurse -Exclude "configs\strategy_presets\unneeded_*"
-        Set-Location $tempDir
+        # 创建安全构建环境 
+        mkdir "$env:RUNNER_TEMP\safe-build"
+        robocopy . "$env:RUNNER_TEMP\safe-build" /E /XD configs\strategy_presets /XF *.yaml
         
-        # 安装依赖
+        # 手动复制需要的配置文件 
+        mkdir "$env:RUNNER_TEMP\safe-build\configs\strategy_presets"
+        copy "configs\strategy_presets\*.yaml" "$env:RUNNER_TEMP\safe-build\configs\strategy_presets\"
+        
+        cd "$env:RUNNER_TEMP\safe-build"
+ 
+    - name: Build and package
+      run: |
         pip install -r requirements.txt  pyinstaller 
-        pip install numpy Cython TA-Lib
+        pyinstaller --noconfirm --onefile `
+          --add-data "configs/strategy_presets/*.yaml;configs/strategy_presets" `
+          main.py 
  
-        # 打包 
-        pyinstaller --noconfirm --onefile --windowed --add-data "configs/strategy_presets/*.yaml;configs/strategy_presets" main.py  
- 
-    - name: Upload artifact
-      uses: actions/upload-artifact@v4
+    - uses: actions/upload-artifact@v4 
       with:
-        name: QuantBot-Windows 
-        path: dist/main.exe 
-        retention-days: 3
-        
+        name: QuantBot-Windows
+        path: "$env:RUNNER_TEMP\safe-build\dist\main.exe" 
